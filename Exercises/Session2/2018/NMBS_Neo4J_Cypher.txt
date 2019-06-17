@@ -1,0 +1,121 @@
+
+MATCH (a)-[r]->(b)  
+ WITH labels(a) AS a_labels,type(r) AS rel_type,labels(b) AS b_labels  
+ UNWIND a_labels as l  
+ UNWIND b_labels as l2  
+ MERGE (a:Node:Meta {name:l})  
+ MERGE (b:Node:Meta {name:l2})  
+ MERGE (a)-[:OUTGOING]->(:Relationship:Meta {name:rel_type})-[:INCOMING]->(b)  
+ RETURN distinct l as first_node, rel_type as connected_by, l2 as second_node  
+
+MATCH p=()-[r:INCOMING|:OUTGOING]->() RETURN p
+MATCH (a)-[:INCOMING]-(b)-[:OUTGOING]-(c) RETURN a,b,c
+match (a)-[r:INCOMING|:OUTGOING]-(b) delete a,r,b
+ 
+ 
+MATCH (n) RETURN count(n)
+
+match(n)
+with labels(n) as labels,n
+return labels,count(n)
+
+MATCH ()-[r]->() RETURN count(r)
+MATCH ()-[r]-() RETURN count(r) 
+
+
+match (b:Stop {name:'Brugge'})<--(bs:Stop), (l:Stop {name:'Leuven'})<--(ls:Stop)
+return b.name, count(distinct bs), l.name, count(distinct ls)
+
+match (t:Trip {service_id:'7415'})--(n:Stoptime) return t.service_id, count(n)
+
+match (t:Trip {service_id:'7415'})--(:Stoptime)--(s:Stop) return t.service_id,s.name
+match (t:Trip {service_id:'7415'})--(ti:Stoptime)--(s:Stop) return t.service_id,s.name order by ti.stop_sequence
+
+match (leuven:Stop {name:'Leuven'})--(time:Stoptime )
+where time.arrival_time>"07:00:00" and time.arrival_time<="08:00:00"
+return leuven.name, count(time)
+
+match (leuven:Stop {name:'Leuven'})--(time:Stoptime )
+where time.arrival_time>"07:00:00" and time.arrival_time<="08:00:00"
+return leuven.platform_code, count(time)
+
+match (r:Route)
+where r.long_name contains 'Brus'
+return distinct r.long_name
+
+match (t:Trip {service_id:'7415'})--(n:Stoptime)--(s:Stop) return s,n
+
+match (s:Stop {name:'Brugge'})<--(s2:Stop), (sl:Stop {name:'Leuven'})<--(sl2:Stop)
+with s, sl
+match p = shortestpath((s)-[*]-(sl))
+return (p)
+
+match (a:Stop {name:'Leuven'}) , (b:Stop {name:'Kiewit'}),
+p = shortestPath((a)-[*]-(b))
+RETURN p
+
+match (l:Stop {name:'Leuven'})--(t:Stoptime )
+where t.arrival_time>"07:00:00" and t.arrival_time<="08:00:00"
+return l,t limit (100)
+
+match (a:Stop {name:'Leuven',location_type:'1'}) , (b:Stop {name:'Kiewit',location_type:'1'}), p = shortestPath((a)-[*]-(b)) RETURN p
+
+match (a:Stop {name:'Leuven',location_type:'1'}) , (b:Stop {name:'Kiewit',location_type:'1'}), p = allshortestPaths((a)-[*]-(b)) RETURN p
+
+match (l:Stop)-[PART_OF]-(s:Stop)--(lst:Stoptime)--(t:Trip)--(r:Route)
+where upper(l.name)='LEUVEN' and lst.departure_time ="07:19:00" 
+return l,s,lst,t,r
+
+match (t:Trip {service_id:'6421'}) -[r]-(b) return t,r,b
+
+match (s:Stop {name:'Leuven'}) --(t:Stoptime)--(trip:Trip) return count(distinct trip)
+
+match (s:Stop {name:'Leuven'}) --(t:Stoptime)--(trip:Trip)--(route:Route) return distinct route
+
+match (a:Stop {name:'Leuven'}) , (b:Stop {name:'Kiewit'}),
+p = shortestPath((a)-[*]-(b))
+RETURN p
+
+match (l:Stop)-[PART_OF]-(s:Stop)--(lst:Stoptime)
+where upper(l.name)='LEUVEN' and lst.departure_time >="07:00:00" and lst.departure_time <="08:00:00"
+with l,lst
+match (b:Stop)-[PART_OF]-(bs:Stop)--(bst:Stoptime)
+where upper(b.name)='BRUGGE' and lst.departure_time < bst.arrival_time
+with l,lst, b, bst
+match p = shortestpath(lst-[:PRECEDES*]-bst)
+return p
+
+match (l:Stop)-[PART_OF]-(s:Stop)--(lst:Stoptime)
+where upper(l.name)='LEUVEN' and lst.departure_time >="07:00:00" and lst.departure_time <="08:00:00"
+with l,lst,s
+match (b:Stop)-[PART_OF]-(bs:Stop)--(bst:Stoptime)
+where upper(b.name)='BRUGGE' and lst.departure_time < bst.arrival_time
+with l,lst, b, bst,s,bs
+match p = shortestpath(lst-[:PRECEDES*]-bst)
+with l,s,b,bs, nodes(p) as n
+unwind n as nodes
+return nodes,l,s,b,bs
+
+match (l:Stop)-[PART_OF]-(s:Stop)--(lst:Stoptime)
+where upper(l.name)='LEUVEN' and lst.departure_time >="07:00:00" and lst.departure_time <="08:00:00"
+with l,lst,s
+match (b:Stop)-[PART_OF]-(bs:Stop)--(bst:Stoptime)
+where upper(b.name)='BRUGGE' and lst.departure_time < bst.arrival_time
+with l,lst, b, bst,s,bs
+match p = shortestpath(lst-[:PRECEDES*]-bst)
+with l,s,b,bs, nodes(p) as n
+unwind n as nodes
+match (nodes)-[:PART_OF_TRIP]->()-[:USES]-(r)
+return nodes,r,l,s,b,bs
+
+match (leuven:Stop)-[PART_OF]-(ls:Stop)--(lst:Stoptime)
+where upper(leuven.name)='LEUVEN' and lst.departure_time >="07:00:00" and lst.departure_time <="08:00:00"
+with leuven,lst,ls
+match (brugge:Stop)-[PART_OF]-(bs:Stop)--(bst:Stoptime)
+where upper(brugge.name)='BRUGGE' and lst.departure_time < bst.arrival_time
+with leuven,lst, brugge, bst,ls,bs
+match p = shortestpath((lst)-[:PRECEDES*]-(bst))
+with leuven,ls,brugge,bs, lst,bst,nodes(p) as n
+unwind n as nodes
+match (nodes)-[:PART_OF_TRIP]->(t:Trip)-[:USES]-(route)
+return bst,lst,route,leuven,ls,brugge,bs,t
